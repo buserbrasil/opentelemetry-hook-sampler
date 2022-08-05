@@ -44,4 +44,4 @@ class HookSampler(Sampler):
         )
 
     def get_description(self) -> str:
-        return f"{self.__class__.__name__}(sampler={self._sampler})"
+        return f"{self.__class__.__name__}(sampler={self._sampler.__name__})"

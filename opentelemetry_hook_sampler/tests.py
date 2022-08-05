@@ -15,6 +15,10 @@ def partial_hook():
     return 20
 
 
+class SubHookSampler(HookSampler):
+    pass
+
+
 @pytest.fixture
 def randint_mock(mocker):
     return mocker.patch("opentelemetry_hook_sampler.randint", autospec=True)
@@ -46,3 +50,13 @@ def test_partial_hook_dropped(randint_mock):
     sampler = ParentBased(root=HookSampler(partial_hook))
     result = sampler.should_sample(None, None, None)
     assert result.decision == Decision.DROP
+
+
+def test_description():
+    hook_sampler = HookSampler(partial_hook)
+    assert hook_sampler.get_description() == "HookSampler(sampler=partial_hook)"
+
+
+def test_subclass_description():
+    hook_sampler = SubHookSampler(partial_hook)
+    assert hook_sampler.get_description() == "SubHookSampler(sampler=partial_hook)"
