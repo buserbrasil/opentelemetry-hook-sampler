@@ -1,22 +1,8 @@
+from unittest.mock import Mock
+
 from opentelemetry_hook_sampler import HookSampler
 from opentelemetry.sdk.trace.sampling import Decision, ParentBased
 import pytest
-
-
-def always_hook():
-    return 100
-
-
-def never_hook():
-    return 0
-
-
-def partial_hook():
-    return 20
-
-
-class SubHookSampler(HookSampler):
-    pass
 
 
 @pytest.fixture
@@ -24,39 +10,63 @@ def randint_mock(mocker):
     return mocker.patch("opentelemetry_hook_sampler.randint", autospec=True)
 
 
+def sample(func):
+    sampler = ParentBased(root=HookSampler(func))
+    return sampler.should_sample(None, None, None)
+
+
 def test_always_hook(randint_mock):
-    sampler = ParentBased(root=HookSampler(always_hook))
-    result = sampler.should_sample(None, None, None)
+    always_hook = Mock(return_value=1)
+    result = sample(always_hook)
     assert result.decision == Decision.RECORD_AND_SAMPLE
+    # Slow call to randint avoided.
     randint_mock.assert_not_called()
 
 
 def test_never_hook(randint_mock):
-    sampler = ParentBased(root=HookSampler(never_hook))
-    result = sampler.should_sample(None, None, None)
+    never_hook = Mock(return_value=0)
+    result = sample(never_hook)
     assert result.decision == Decision.DROP
+    # Slow call to randint avoided.
+    randint_mock.assert_not_called()
+
+
+def test_null_hook(randint_mock):
+    null_hook = Mock(return_value=None)
+    result = sample(null_hook)
+    assert result.decision == Decision.DROP
+    # Slow call to randint avoided.
     randint_mock.assert_not_called()
 
 
 def test_partial_hook_sampled(randint_mock):
-    randint_mock.return_value = 10
-    sampler = ParentBased(root=HookSampler(partial_hook))
-    result = sampler.should_sample(None, None, None)
+    partial_hook = Mock(return_value=5)
+    randint_mock.return_value = 5
+    result = sample(partial_hook)
     assert result.decision == Decision.RECORD_AND_SAMPLE
 
 
 def test_partial_hook_dropped(randint_mock):
-    randint_mock.return_value = 30
-    sampler = ParentBased(root=HookSampler(partial_hook))
-    result = sampler.should_sample(None, None, None)
+    partial_hook = Mock(return_value=5)
+    randint_mock.return_value = 3
+    result = sample(partial_hook)
     assert result.decision == Decision.DROP
 
 
 def test_description():
-    hook_sampler = HookSampler(partial_hook)
-    assert hook_sampler.get_description() == "HookSampler(sampler=partial_hook)"
+    def foo():
+        pass
+
+    hook_sampler = HookSampler(foo)
+    assert hook_sampler.get_description() == "HookSampler(sampler=foo)"
 
 
 def test_subclass_description():
-    hook_sampler = SubHookSampler(partial_hook)
-    assert hook_sampler.get_description() == "SubHookSampler(sampler=partial_hook)"
+    def foo():
+        pass
+
+    class SubHookSampler(HookSampler):
+        pass
+
+    hook_sampler = SubHookSampler(foo)
+    assert hook_sampler.get_description() == "SubHookSampler(sampler=foo)"

@@ -28,10 +28,10 @@ class HookSampler(Sampler):
         trace_state: TraceState = None,
     ) -> SamplingResult:
         decision = Decision.DROP
-        # Sampler return an int [0, 100]
+        # Sampler return an int N to sample 1/N times.
         rate = self._sampler()
 
-        if rate and (rate == 100 or randint(0, 100) < rate):
+        if rate and (rate == 1 or randint(1, rate) == rate):
             decision = Decision.RECORD_AND_SAMPLE
 
         if decision is Decision.DROP:
