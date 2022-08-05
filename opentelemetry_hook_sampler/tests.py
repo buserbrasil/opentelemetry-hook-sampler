@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from opentelemetry_hook_sampler import HookSampler
+from opentelemetry_hook_sampler import HookSampler, HoneycombHookSampler
 from opentelemetry.sdk.trace.sampling import Decision, ParentBased
 import pytest
 
@@ -10,8 +10,8 @@ def randint_mock(mocker):
     return mocker.patch("opentelemetry_hook_sampler.randint", autospec=True)
 
 
-def sample(func):
-    sampler = ParentBased(root=HookSampler(func))
+def sample(func, *, _sampler=HookSampler):
+    sampler = ParentBased(root=_sampler(func))
     return sampler.should_sample(None, None, None)
 
 
@@ -70,3 +70,9 @@ def test_subclass_description():
 
     hook_sampler = SubHookSampler(foo)
     assert hook_sampler.get_description() == "SubHookSampler(sampler=foo)"
+
+
+def test_honeycomb_sample_rate_attribute():
+    always_hook = Mock(return_value=1)
+    result = sample(always_hook, _sampler=HoneycombHookSampler)
+    assert result.attributes["SampleRate"] == 1

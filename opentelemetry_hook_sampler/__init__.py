@@ -27,21 +27,35 @@ class HookSampler(Sampler):
         links: Sequence[Link] = None,
         trace_state: TraceState = None,
     ) -> SamplingResult:
-        decision = Decision.DROP
         # Sampler return an int N to sample 1/N times.
         rate = self._sampler()
-
         if rate and (rate == 1 or randint(1, rate) == rate):
             decision = Decision.RECORD_AND_SAMPLE
+        else:
+            decision = Decision.DROP
 
-        if decision is Decision.DROP:
-            attributes = None
-
-        return SamplingResult(
+        sampling_result = SamplingResult(
             decision,
-            attributes,
+            self._process_attributes(attributes, decision, rate),
             _get_parent_trace_state(parent_context),
         )
+        return sampling_result
 
     def get_description(self) -> str:
         return f"{self.__class__.__name__}(sampler={self._sampler.__name__})"
+
+    def _process_attributes(self, attributes, decision, rate):
+        if decision is Decision.DROP:
+            attributes = None
+        return attributes
+
+
+class HoneycombHookSampler(HookSampler):
+    def _process_attributes(self, attributes, decision, rate):
+        if decision is Decision.DROP:
+            attributes = None
+        elif decision == Decision.RECORD_AND_SAMPLE:
+            if attributes is None:
+                attributes = {}
+            attributes.update({"SampleRate": rate})
+        return attributes
