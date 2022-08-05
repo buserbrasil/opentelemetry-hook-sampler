@@ -1,1 +1,1 @@
-# opentelemetry-context-based-sampler
+# opentelemetry-hook-sampler
