@@ -19,10 +19,10 @@ from opentelemetry_hook_sampler import HookSampler
 
 def sampler_hook():
     """
-    Sample every 10 traces.
+    Sample 1 in 10 traces.
     
     The example is static, but you can get info from any context available
-    in your application. E.g. http request, celery task, etc.
+    in your application. E.g. http request, celery task, thread locals, etc.
     """
     return 10
 
