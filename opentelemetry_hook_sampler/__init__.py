@@ -54,7 +54,7 @@ class HoneycombHookSampler(HookSampler):
     def _process_attributes(self, attributes, decision, rate):
         if decision is Decision.DROP:
             attributes = None
-        elif decision == Decision.RECORD_AND_SAMPLE:
+        elif decision is Decision.RECORD_AND_SAMPLE:
             if attributes is None:
                 attributes = {}
             attributes.update({"SampleRate": rate})
