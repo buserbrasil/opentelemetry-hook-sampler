@@ -1,4 +1,4 @@
-from random import randint
+from random import random
 from typing import Optional, Sequence
 
 from opentelemetry.context import Context
@@ -27,9 +27,13 @@ class HookSampler(Sampler):
         links: Sequence[Link] = None,
         trace_state: TraceState = None,
     ) -> SamplingResult:
-        # Sampler return an int N to sample 1/N times.
+        # Sampler must return an int N to sample 1/N times.
+        # Use `rate=0`, `rate=None` or any falsy value to drop the sample.
+        # Use `rate=1` to always record the sample.
         rate = self._sampler()
-        if rate and (rate == 1 or randint(1, rate) == rate):
+
+        # This is a micro optimization to avoid unecessary slow random call.
+        if rate and (rate == 1 or random() < (1 / rate)):
             decision = Decision.RECORD_AND_SAMPLE
         else:
             decision = Decision.DROP
@@ -51,6 +55,12 @@ class HookSampler(Sampler):
 
 
 class HoneycombHookSampler(HookSampler):
+    """
+    HoneycombHookSampler works like HookSampler, also sending a `SampleRate`
+    attribute, because it is really useful to Honeycomb but is not OpenTelemetry
+    spec.
+    """
+
     def _process_attributes(self, attributes, decision, rate):
         if decision is Decision.DROP:
             attributes = None
