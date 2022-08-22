@@ -1,9 +1,6 @@
 .coverage
+.eggs
 .python-version
 
-*.egg
+*.egg-info
 *.pyc
-
-.eggs/*
-build/*
-*.egg-info/*
