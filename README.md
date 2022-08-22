@@ -44,8 +44,24 @@ it is supported through `opentelemetry_hook_sampler.HoneycombHookSampler`.
 
 #### [django-threadlocals](https://pypi.org/project/django-threadlocals/)
 
+Be careful, threadlocals module don't work with async Django.
+
 ```python
 from threadlocals.threadlocals import get_current_request
+
+
+def sampler_hook():
+    request = get_current_request()
+    # 10% /foo requests
+    if request.path == '/foo':
+        return 10
+    return 1
+```
+
+#### [django-g](https://pypi.org/project/django-g/)
+
+```python
+from django_g import get_current_request
 
 
 def sampler_hook():
