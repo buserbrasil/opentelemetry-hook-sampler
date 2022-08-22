@@ -10,7 +10,6 @@ setup(
         "pytest-runner",
     ],
     tests_require=[
-        "flake8<5",
         "flake8-bugbear",
         "pytest",
         "pytest-black",
