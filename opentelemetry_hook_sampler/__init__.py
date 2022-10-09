@@ -13,6 +13,16 @@ from opentelemetry.util.types import Attributes
 
 
 class HookSampler(TraceIdRatioBased):
+    """
+    Sampler that makes sampling decisions probabilistically based on a rate
+    given by the `hook` function.
+
+    Args:
+        hook: A function that must return an int N to sample 1/N times.
+            Use `rate=0`, `rate=None`, or any falsy value to drop the span.
+            Use `rate=1` to always record the span.
+    """
+
     def __init__(self, hook: callable):
         self._hook = hook
 
@@ -50,12 +60,22 @@ class HookSampler(TraceIdRatioBased):
 
 
 class ParentBasedHookSampler(ParentBased):
+    """
+    Sampler that respects its parent span's sampling decision, but otherwise
+    samples probabilistically based on a rate given by the `hook` function.
+    """
+
     def __init__(self, hook: callable):
         root = HookSampler(hook=hook)
         super().__init__(root=root)
 
 
 class HoneycombMixin:
+    """
+    Mixin that adds the vendor-specific attribute `SampleRate` based on TraceState.
+    The `SampleRate` attribute is used by Honeycomb to show the adjusted count.
+    """
+
     def should_sample(
         self,
         parent_context: Optional[Context],
@@ -83,8 +103,20 @@ class HoneycombMixin:
 
 
 class HoneycombHookSampler(HoneycombMixin, HookSampler):
+    """
+    Sampler that makes sampling decisions probabilistically based on a rate
+    given by the `hook` function. Also, saves the rate as an attribute that
+    Honeycomb uses to show the adjusted count.
+    """
+
     pass
 
 
 class ParentBasedHoneycombHookSampler(HoneycombMixin, ParentBasedHookSampler):
+    """
+    Sampler that respects its parent span's sampling decision, but otherwise samples
+    probabilistically based on a rate given by the `hook` function. Also, saves the
+    rate as an attribute that Honeycomb uses to show the adjusted count.
+    """
+
     pass
