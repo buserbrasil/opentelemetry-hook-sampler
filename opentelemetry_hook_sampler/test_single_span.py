@@ -160,8 +160,8 @@ def test_description_honeycomb_hook_sampler():
     ],
 )
 def test_honeycomb_sample_rate_attribute(SamplerClass):
-    always_hook = Mock(return_value=42)
-    sampler = SamplerClass(always_hook)
+    partial_hook = Mock(return_value=42)
+    sampler = SamplerClass(partial_hook)
 
     result = sampler.should_sample(
         None,
