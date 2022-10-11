@@ -41,6 +41,7 @@ class HookSampler(TraceIdRatioBased):
         if sample_rate:
             self._bound = self.get_bound_for_rate(1 / sample_rate)
         else:
+            sample_rate = 0
             self._bound = self.get_bound_for_rate(0)
 
         # make sampling decision

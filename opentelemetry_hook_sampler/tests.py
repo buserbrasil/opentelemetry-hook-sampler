@@ -1,75 +1,172 @@
 from unittest.mock import Mock
 
-from opentelemetry_hook_sampler import HookSampler, HoneycombHookSampler
-from opentelemetry.sdk.trace.sampling import Decision, ParentBased
 import pytest
+from opentelemetry.sdk.trace.sampling import Decision
+
+from opentelemetry_hook_sampler import (
+    HoneycombHookSampler,
+    HookSampler,
+    ParentBasedHoneycombHookSampler,
+    ParentBasedHookSampler,
+)
 
 
-@pytest.fixture
-def random_mock(mocker):
-    return mocker.patch("opentelemetry_hook_sampler.random", autospec=True)
-
-
-def sample(func, *, _sampler=HookSampler):
-    sampler = ParentBased(root=_sampler(func))
-    return sampler.should_sample(None, None, None)
-
-
-def test_always_hook(random_mock):
+@pytest.mark.parametrize(
+    "SamplerClass",
+    [
+        HookSampler,
+        ParentBasedHookSampler,
+        HoneycombHookSampler,
+        ParentBasedHoneycombHookSampler,
+    ],
+)
+def test_always_hook(SamplerClass):
     always_hook = Mock(return_value=1)
-    result = sample(always_hook)
+    sampler = SamplerClass(always_hook)
+
+    result = sampler.should_sample(
+        None,
+        0xFFFFFFFFFFFFFFFF,  # last trace id to be sampled
+        "span name",
+        attributes={"foo": "bar"},
+    )
+
     assert result.decision == Decision.RECORD_AND_SAMPLE
-    # Slow call to random avoided.
-    random_mock.assert_not_called()
+    assert result.attributes["foo"] == "bar"
+    assert result.trace_state["sample_rate"] == "1"
 
 
-def test_never_hook(random_mock):
+@pytest.mark.parametrize(
+    "SamplerClass",
+    [
+        HookSampler,
+        ParentBasedHookSampler,
+        HoneycombHookSampler,
+        ParentBasedHoneycombHookSampler,
+    ],
+)
+def test_never_hook(SamplerClass):
     never_hook = Mock(return_value=0)
-    result = sample(never_hook)
+    sampler = SamplerClass(never_hook)
+
+    result = sampler.should_sample(
+        None,
+        0x0,  # first trace id to be sampled
+        "span name",
+        attributes={"foo": "bar"},
+    )
+
     assert result.decision == Decision.DROP
-    # Slow call to random avoided.
-    random_mock.assert_not_called()
+    assert result.attributes == {}
+    assert result.trace_state["sample_rate"] == "0"
 
 
-def test_falsy_hook(random_mock):
+@pytest.mark.parametrize(
+    "SamplerClass",
+    [
+        HookSampler,
+        ParentBasedHookSampler,
+        HoneycombHookSampler,
+        ParentBasedHoneycombHookSampler,
+    ],
+)
+def test_falsy_hook(SamplerClass):
     falsy_hook = Mock(return_value=None)
-    result = sample(falsy_hook)
+    sampler = SamplerClass(falsy_hook)
+
+    result = sampler.should_sample(
+        None,
+        0x0,  # first trace id to be sampled
+        "span name",
+        attributes={"foo": "bar"},
+    )
+
     assert result.decision == Decision.DROP
-    # Slow call to random avoided.
-    random_mock.assert_not_called()
+    assert result.attributes == {}
+    assert result.trace_state["sample_rate"] == "0"
 
 
-def test_partial_hook_sampled(random_mock):
-    partial_hook = Mock(return_value=5)
-    random_mock.return_value = 0.1
-    result = sample(partial_hook)
+@pytest.mark.parametrize(
+    "SamplerClass",
+    [
+        HookSampler,
+        ParentBasedHookSampler,
+        HoneycombHookSampler,
+        ParentBasedHoneycombHookSampler,
+    ],
+)
+def test_partial_hook_sampled(SamplerClass):
+    partial_hook = Mock(return_value=2)
+    sampler = SamplerClass(partial_hook)
+
+    result = sampler.should_sample(
+        None,
+        0x7FFFFFFFFFFFFFFF,
+        "span name",
+        attributes={"foo": "bar"},
+    )
+
     assert result.decision == Decision.RECORD_AND_SAMPLE
+    assert result.attributes["foo"] == "bar"
+    assert result.trace_state["sample_rate"] == "2"
 
 
-def test_partial_hook_dropped(random_mock):
-    partial_hook = Mock(return_value=5)
-    random_mock.return_value = 0.3
-    result = sample(partial_hook)
+@pytest.mark.parametrize(
+    "SamplerClass",
+    [
+        HookSampler,
+        ParentBasedHookSampler,
+        HoneycombHookSampler,
+        ParentBasedHoneycombHookSampler,
+    ],
+)
+def test_partial_hook_dropped(SamplerClass):
+    partial_hook = Mock(return_value=2)
+    sampler = SamplerClass(partial_hook)
+
+    result = sampler.should_sample(
+        None,
+        0x8000000000000000,
+        "span name",
+        attributes={"foo": "bar"},
+    )
+
     assert result.decision == Decision.DROP
+    assert result.attributes == {}
+    assert result.trace_state["sample_rate"] == "2"
 
 
-def test_description():
+def test_description_hook_sampler():
     def foo():
         pass
 
-    hook_sampler = HookSampler(foo)
-    assert hook_sampler.get_description() == "HookSampler(sampler=foo)"
+    sampler = HookSampler(foo)
+    assert sampler.get_description() == "HookSampler{foo}"
 
 
-def test_subclass_description():
+def test_description_honeycomb_hook_sampler():
     def foo():
         pass
 
-    hook_sampler = HoneycombHookSampler(foo)
-    assert hook_sampler.get_description() == "HoneycombHookSampler(sampler=foo)"
+    sampler = HoneycombHookSampler(foo)
+    assert sampler.get_description() == "HoneycombHookSampler{foo}"
 
 
-def test_honeycomb_sample_rate_attribute():
-    always_hook = Mock(return_value=1)
-    result = sample(always_hook, _sampler=HoneycombHookSampler)
-    assert result.attributes["SampleRate"] == 1
+@pytest.mark.parametrize(
+    "SamplerClass",
+    [
+        HoneycombHookSampler,
+        ParentBasedHoneycombHookSampler,
+    ],
+)
+def test_honeycomb_sample_rate_attribute(SamplerClass):
+    always_hook = Mock(return_value=42)
+    sampler = SamplerClass(always_hook)
+
+    result = sampler.should_sample(
+        None,
+        0x0,
+        "span name",
+    )
+
+    assert result.attributes["SampleRate"] == "42"
